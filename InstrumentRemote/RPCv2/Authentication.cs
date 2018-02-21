@@ -19,12 +19,20 @@ namespace InstrumentRemote.RPCv2
         /// <summary>
         ///Flavor of Authentication
         /// </summary>
-        AuthFlavor Flavor;
+        public AuthFlavor Flavor { get; private set; }
 
         /// <summary>
         /// Body of authentification
         /// </summary>
         byte[] Body;
+
+        public int Size
+        {
+            get
+            {
+                return sizeof(int) * 2 + Body.Length;
+            }
+        }
 
         /// <summary>
         /// Base constructor, creating instance of a class without authentication
@@ -53,13 +61,15 @@ namespace InstrumentRemote.RPCv2
         /// Restore class from byte array
         /// </summary>
         /// <param name="source">Source byte array</param>
-        public Authentication(byte[] source)
+        public Authentication(byte[] source, int offset)
         {
             if (source.Length > 2 * sizeof(int))
             {
-                Flavor = (AuthFlavor)BitConverter.ToInt32(source, 0);
-                Body = new byte[source.Length - sizeof(int)];
-                source.CopyTo(Body, sizeof(int));
+                Flavor = (AuthFlavor)NetUtils.ToIntFromBigEndian(source, offset);
+                int l = NetUtils.ToIntFromBigEndian(source, offset + sizeof(int));
+                if (l > 399) throw new ArgumentException("Authentication. Error size of auth information.");
+                Body = new byte[l];
+                Buffer.BlockCopy(source, offset + sizeof(int) * 2, Body, 0, l);
             }
             
         }
@@ -70,10 +80,10 @@ namespace InstrumentRemote.RPCv2
         /// <returns>Byte array to send</returns>
         public byte[] ToBytes()
         {
-            //byte[] rez = new byte[sizeof(int) + Body.Length];
-            List<byte> rez = new List<byte>(sizeof(int) + Body.Length);
+            List<byte> rez = new List<byte>(sizeof(int)*2 + Body.Length);
             //rez.AddRange(BitConverter.GetBytes((int)Flavor));
             rez.AddRange(NetUtils.ToBigEndianBytes((int)Flavor));
+            rez.AddRange(NetUtils.ToBigEndianBytes(Body.Length));
             rez.AddRange(Body);
             return rez.ToArray();
         }

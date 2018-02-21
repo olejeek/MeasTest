@@ -91,19 +91,51 @@ namespace InstrumentRemote
         //    return res;
         //}
 
+        /// <summary>
+        /// Convert big endian byte array to integer
+        /// </summary>
+        /// <param name="src">Converted big endian byte array</param>
+        /// <returns></returns>
         public static int ToIntFromBigEndian (byte[] src)
         {
-            for (int i = 0; i < sizeof(int); i++)
+            if (BitConverter.IsLittleEndian)
             {
-
+                int intSize = sizeof(int);
+                byte[] temp = new byte[intSize];
+                int minLength = src.Length < intSize ? src.Length : intSize;
+                for (int i = 0; i < minLength; i++)
+                {
+                    temp[i] = src[minLength - i];
+                }
+                return BitConverter.ToInt32(temp, 0);
             }
-            
-            return 0;
+            else return BitConverter.ToInt32(src, 0);
         }
 
+        /// <summary>
+        /// Convert part of byte array to int
+        /// </summary>
+        /// <param name="src">Source byte array</param>
+        /// <param name="offset">Offset in byte array</param>
+        /// <returns></returns>
         public static int ToIntFromBigEndian(byte[] src, int offset)
         {
-            return 0;
+            if (offset >= src.Length)
+                throw new ArgumentException("NetUtils.ToIntFromBigEndian. Offset more than array size.");
+            if (BitConverter.IsLittleEndian)
+            {
+                int intSize = sizeof(int);
+                byte[] temp = new byte[intSize];
+                int l = src.Length - offset;
+                int minLength = l < intSize ? l : intSize;
+                l = offset + minLength-1;
+                for (int i = 0; i < minLength; i++)
+                {
+                    temp[i] = src[l - i];
+                }
+                return BitConverter.ToInt32(temp, 0);
+            }
+            else return BitConverter.ToInt32(src, offset);
         }
     }
 }

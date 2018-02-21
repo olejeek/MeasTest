@@ -147,11 +147,17 @@ namespace InstrumentRemote.RPCv2
                 RpcSocket.Connect(new IPEndPoint(IPAddress.Any, 0));
             byte[] buff = new byte[1024];
             int recSize = RpcSocket.Receive(buff);
-            if (!CheckXID(buff)) return null;
+            if (!(CheckXID(buff) && CheckReceive(buff))) return null;
             recSize -= sizeof(uint);
             byte[] nbuff = new byte[recSize];
             Buffer.BlockCopy(buff, sizeof(uint), nbuff, 0, recSize);
             return new RpcReplyMessage(nbuff);
+        }
+        private bool CheckReceive(byte[] src)
+        {
+            MessageType type = (MessageType)NetUtils.ToIntFromBigEndian(src, sizeof(int));
+            if (type == MessageType.REPLY) return true;
+            else return false;
         }
 
         public Dictionary<EndPoint, RpcReplyMessage> RecieveBroadcast()
