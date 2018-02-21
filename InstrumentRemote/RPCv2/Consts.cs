@@ -42,7 +42,7 @@ namespace InstrumentRemote.RPCv2
     /// <summary>
     /// Status of reply message RPC
     /// </summary>
-    public enum ReplyStatus
+    public enum ReplyState
     {
         /// <summary>
         /// Message accepted
@@ -179,7 +179,7 @@ namespace InstrumentRemote.RPCv2
         /// <summary>
         /// VXI-11 Core
         /// </summary>
-        VXI11Core   = 395183
+        VXI_11_Core   = 395183
     }
     #endregion
 

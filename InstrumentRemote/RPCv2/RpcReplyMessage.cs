@@ -18,21 +18,31 @@ namespace InstrumentRemote.RPCv2
         Authentication ServerVerifier;
 
         /// <summary>
-        /// Status of Reply Message
+        /// State of Reply Message
         /// </summary>
-        ReplyStatus Status = (ReplyStatus)(- 1);
-        #region if (Status == ReplyStatus.MSG_SUCCESS)
+        private ReplyState state = (ReplyState)(- 1);
+        /// <summary>
+        /// State of Reply Message
+        /// </summary>
+        public ReplyState State { get { return state; } }
+
+        #region if (State == ReplyStatus.MSG_SUCCESS)
+
         /// <summary>
         /// Accept State of Reply Message. Using only if Status = MSG_ACCEPTED
         /// </summary>
-        ReplyAcceptState AcceptState = (ReplyAcceptState)(-1);
+        private ReplyAcceptState acceptState = (ReplyAcceptState)(-1);
+        /// <summary>
+        /// Accept State of Reply Message. Using only if Status = MSG_ACCEPTED
+        /// </summary>
+        public ReplyAcceptState AcceptState { get { return acceptState; } }
 
         #region if (AcceptState == ReplyAcceptState.SUCCESS)
 
         /// <summary>
         /// Procedure-specific results
         /// </summary>
-        byte[] result;
+        public byte[] Result { get; private set; }
         #endregion
 
         #region if (AcceptState == ReplyAcceptState.PROG_MISMATCH)
@@ -40,12 +50,12 @@ namespace InstrumentRemote.RPCv2
         /// <summary>
         /// Lowest supported version of Program. Using only if AcceptState = PROG_MISMATCH
         /// </summary>
-        uint PROGvLow;
+        public uint PROGvLow { get; private set; }
 
         /// <summary>
         /// Highest supported version of Program. Using only if AcceptState = PROG_MISMATCH
         /// </summary>
-        uint PROGvHigh;
+        public uint PROGvHigh { get; private set; }
         #endregion
 
         #region if (AcceptState != (ReplyAcceptState.SUCCESS | ReplyAcceptState.PROG_MISMATCH))
@@ -58,18 +68,22 @@ namespace InstrumentRemote.RPCv2
         /// <summary>
         /// Reject State of Reply Message. Using only if Status = MSG_Denied
         /// </summary>
-        ReplyRejectState RejectState = (ReplyRejectState)(-1);
+        private ReplyRejectState rejectState = (ReplyRejectState)(-1);
+        /// <summary>
+        /// Reject State of Reply Message. Using only if Status = MSG_Denied
+        /// </summary>
+        public ReplyRejectState RejectState { get { return rejectState; } }
 
         #region if (RejectState == ReplyRejectState.RPC_MISMATCH)
 
         /// <summary>
         /// Lowest supported version of RPC. Using only if RejectState = RPC_MISMATCH
         /// </summary>
-        uint RPCvLow;
+        public uint RPCvLow { get; private set; }
         /// <summary>
         /// Highest supported version of RPC. Using only if RejectState = RPC_MISMATCH
         /// </summary>
-        uint RPCvHigh;
+        public uint RPCvHigh { get; private set; }
         #endregion
 
         #region if (RejectState == ReplyRejectState.AUTH_ERROR)
@@ -77,7 +91,11 @@ namespace InstrumentRemote.RPCv2
         /// <summary>
         /// Authentication state. Using only if RejectState = AUTH_ERROR
         /// </summary>
-        AuthenticationState AuthState = (AuthenticationState)(-1);
+        AuthenticationState authState = (AuthenticationState)(-1);
+        /// <summary>
+        /// Authentication state. Using only if RejectState = AUTH_ERROR
+        /// </summary>
+        public AuthenticationState AuthState { get { return authState; } }
         #endregion
         #endregion
         #endregion
@@ -86,22 +104,23 @@ namespace InstrumentRemote.RPCv2
         public RpcReplyMessage(byte[] recieved)
         {
             Type = MessageType.REPLY;
-            Status = (ReplyStatus)NetUtils.ToIntFromBigEndian(recieved);
+            state = (ReplyState)NetUtils.ToIntFromBigEndian(recieved, sizeof(int));
             int pos = sizeof(int);
-            switch (Status)
+            switch (state)
             {
-                case ReplyStatus.MSG_ACCEPTED:
+                case ReplyState.MSG_ACCEPTED:
                     #region Accepted
                     ServerVerifier = new Authentication(recieved,pos);
                     pos += ServerVerifier.Size;
                     if (ServerVerifier.Flavor == AuthFlavor.AUTH_NONE)
                     {
-                        AcceptState = (ReplyAcceptState)NetUtils.ToIntFromBigEndian(recieved, pos);
+                        acceptState = (ReplyAcceptState)NetUtils.ToIntFromBigEndian(recieved, pos);
                         pos += sizeof(int);
-                        switch (AcceptState)
+                        switch (acceptState)
                         {
                             case ReplyAcceptState.SUCCESS:
-                                Buffer.BlockCopy(recieved, pos, result, 0, recieved.Length - pos);
+                                Result = new byte[recieved.Length - pos];
+                                Buffer.BlockCopy(recieved, pos, Result, 0, recieved.Length - pos);
                                 break;
                             case ReplyAcceptState.PROG_MISMATCH:
                                 PROGvLow = (uint)NetUtils.ToIntFromBigEndian(recieved, pos);
@@ -121,11 +140,11 @@ namespace InstrumentRemote.RPCv2
                         throw new ArgumentException("RPCv2. Library not support authentication.");
                     #endregion
                     break;
-                case ReplyStatus.MSG_DENIED:
+                case ReplyState.MSG_DENIED:
                     #region Denied
-                    RejectState = (ReplyRejectState)NetUtils.ToIntFromBigEndian(recieved, pos);
+                    rejectState = (ReplyRejectState)NetUtils.ToIntFromBigEndian(recieved, pos);
                     pos += sizeof(int);
-                    switch (RejectState)
+                    switch (rejectState)
                     {
                         case ReplyRejectState.RPC_MISMATCH:
                             RPCvLow = (uint)NetUtils.ToIntFromBigEndian(recieved, pos);
@@ -133,7 +152,7 @@ namespace InstrumentRemote.RPCv2
                             RPCvHigh = (uint)NetUtils.ToIntFromBigEndian(recieved, pos);
                             break;
                         case ReplyRejectState.AUTH_ERROR:
-                            AuthState = (AuthenticationState)NetUtils.ToIntFromBigEndian(recieved, pos);
+                            authState = (AuthenticationState)NetUtils.ToIntFromBigEndian(recieved, pos);
                             break;
                         default:
                             throw new ArgumentException("RpcReplyMessage. Wrong Reject State.");
@@ -148,6 +167,32 @@ namespace InstrumentRemote.RPCv2
         public override byte[] ToBytes()
         {
             throw new Exception("RpcReplyMessage. Function not supported.");
+        }
+
+        public override string ToString()
+        {
+            StringBuilder str = new StringBuilder(100);
+            str.AppendFormat(base.ToString());
+            str.AppendFormat(" State: " + state.ToString() + " - ");
+            if (state == ReplyState.MSG_ACCEPTED)
+            {
+                if (acceptState == ReplyAcceptState.PROG_MISMATCH)
+                    str.AppendFormat(acceptState.ToString() +
+                            ". Min support program version: " +
+                            PROGvLow + ". Max support program version: " + PROGvHigh + ". ");
+                else
+                    str.AppendFormat(acceptState.ToString() + ". ");
+                str.AppendFormat(ServerVerifier.ToString());
+            }
+            else
+            {
+                if (rejectState == ReplyRejectState.RPC_MISMATCH)
+                    str.AppendFormat(rejectState.ToString() + ". Min support RPC version:" +
+                        RPCvLow + ". Max support RPC version: " + RPCvHigh + ".");
+                else
+                    str.AppendFormat(rejectState.ToString() + " - " + AuthState.ToString() + ".");
+            }
+            return str.ToString();
         }
     }
 }

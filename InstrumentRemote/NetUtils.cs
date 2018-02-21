@@ -105,7 +105,7 @@ namespace InstrumentRemote
                 int minLength = src.Length < intSize ? src.Length : intSize;
                 for (int i = 0; i < minLength; i++)
                 {
-                    temp[i] = src[minLength - i];
+                    temp[i] = src[minLength - i - 1];
                 }
                 return BitConverter.ToInt32(temp, 0);
             }

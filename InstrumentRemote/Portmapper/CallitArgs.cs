@@ -10,7 +10,7 @@ namespace InstrumentRemote.Portmapper
     /// Struct call_args in rfc 1833.
     /// Argument to procedure CALLIT
     /// </summary>
-    class CallitArgs
+    public class CallitArgs
     {
         uint Program;
         uint Version;

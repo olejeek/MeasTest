@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using InstrumentRemote.Portmapper;
 using InstrumentRemote.RPCv2;
 using InstrumentRemote;
 
@@ -19,24 +20,18 @@ namespace ConsoleApplication2
         {
             Console.Read();
 
-            Random r = new Random();
-            int i = r.Next();
-            Console.WriteLine(i);
-            Console.WriteLine(BitConverter.ToString(BitConverter.GetBytes(i)));
-            Console.WriteLine(BitConverter.ToString(NetUtils.ToBigEndianBytes(i)));
-            Console.WriteLine("LittleEndian: " + BitConverter.IsLittleEndian.ToString());
-            uint j = (uint)r.Next();
-            Console.WriteLine(j);
-            Console.WriteLine(BitConverter.ToString(BitConverter.GetBytes(j)));
-            Console.WriteLine(BitConverter.ToString(NetUtils.ToBigEndianBytes(j)));
+            PortmapperClient pm = new PortmapperClient(
+                new IPEndPoint(IPAddress.Parse("172.20.53.7"), 1990),
+                new IPEndPoint(IPAddress.Broadcast, 111));
+            uint port = pm.GetPort((int)RpcProgram.VXI_11_Core, 1, TransportProtocol.TCP);
+            pm.Close();
 
-
-            RpcClient client = new RpcClient(new IPEndPoint(IPAddress.Parse("192.168.1.10"), 1990),
-                ProtocolType.Udp, new IPEndPoint(IPAddress.Broadcast, 111));
-            client.Connect();
-            RpcCallMessage call = new RpcCallMessage(RpcProgram.Portmapper, 2, 3, new byte[] { 0x00, 0x06, 0x07, 0xAF,  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00});
-            client.Call(call);
-            client.Close();
+            //RpcClient client = new RpcClient(new IPEndPoint(IPAddress.Parse("172.20.53.7"), 1990),
+            //    ProtocolType.Udp, new IPEndPoint(IPAddress.Broadcast, 111));
+            //client.Connect();
+            //RpcCallMessage call = new RpcCallMessage(RpcProgram.Portmapper, 2, 3, new byte[] { 0x00, 0x06, 0x07, 0xAF,  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00});
+            //client.Call(call);
+            //client.Close();
 
             Console.ReadLine();
             Console.ReadLine();

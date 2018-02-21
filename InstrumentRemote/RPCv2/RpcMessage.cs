@@ -14,13 +14,17 @@ namespace InstrumentRemote.RPCv2
         /// <summary>
         /// Type of RPC Message
         /// </summary>
-        public MessageType Type;
+        public MessageType Type { get; protected set; }
 
         /// <summary>
         /// Convert RPC Message to array of byte
         /// </summary>
         /// <returns></returns>
         public abstract byte[] ToBytes();
+        public override string ToString()
+        {
+            return "RPC Message. Type: " + Type.ToString() + ";";
+        }
 
     }
 }

@@ -9,7 +9,7 @@ using System.Net.Sockets;
 
 namespace InstrumentRemote.Portmapper
 {
-    class PortmapperClient
+    public class PortmapperClient
     {
         RpcClient Client;
         IPEndPoint LocalEndPoint;
@@ -40,17 +40,28 @@ namespace InstrumentRemote.Portmapper
 
         public uint GetPort (Mapping arg)
         {
+            RpcCallMessage getport = new RpcCallMessage(RpcProgram.Portmapper, 2,
+                (uint)PortmapperProcedure.GETPORT, arg.ToBytes());
             if (!Client.Connected) Client.Connect();
-            Client.Call(new RpcCallMessage(RpcProgram.Portmapper, 2, 
-                (uint)PortmapperProcedure.GETPORT, arg.ToBytes()));
+            Client.Call(getport);
             RpcReplyMessage reply = Client.Recieve();
-            return 0;
+            if (reply.AcceptState == ReplyAcceptState.SUCCESS)
+            {
+                uint port = (uint)NetUtils.ToIntFromBigEndian(reply.Result);
+                if (port == 0)
+                    throw new Exception("Portmapper. Program " + arg.Program +
+                        " version " + arg.Version + " not available to " +
+                        arg.Protocol.ToString() + ".");
+                else return port;
+            }
+            else
+                throw new Exception("Portmapper. Wrong answer. " + reply.ToString() + ".");
         }
 
         public uint GetPort (uint prog, uint progVers, TransportProtocol protocol)
         {
-            Mapping map = new Mapping();
-            return 0;
+            Mapping map = new Mapping(prog, progVers, protocol);
+            return GetPort(map);
         }
 
         public LinkedList<Mapping> Dump ()

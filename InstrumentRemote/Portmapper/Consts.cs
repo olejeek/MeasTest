@@ -42,7 +42,7 @@ namespace InstrumentRemote.Portmapper
     /// <summary>
     /// Supported values for the "prot" field.
     /// </summary>
-    enum TransportProtocol
+    public enum TransportProtocol
     {
         /// <summary>
         /// TCP

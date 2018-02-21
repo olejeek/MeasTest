@@ -10,7 +10,7 @@ namespace InstrumentRemote.Portmapper
     /// Struct call_result in rfc 1833.
     /// Return value of procedure CALLIT
     /// </summary>
-    class CallitResult
+    public class CallitResult
     {
         uint Port;
         byte[] Answer;

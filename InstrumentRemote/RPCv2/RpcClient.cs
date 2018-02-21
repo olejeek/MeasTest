@@ -80,9 +80,8 @@ namespace InstrumentRemote.RPCv2
             CallMessage = callProcedure;
             byte[] mes = callProcedure.ToBytes();
             byte[] finalmes = new byte[sizeof(uint) + mes.Length];
-            Buffer.BlockCopy(BitConverter.GetBytes(xid), 0, finalmes, 0, 4);
+            Buffer.BlockCopy(NetUtils.ToBigEndianBytes(xid), 0, finalmes, 0, 4);
             Buffer.BlockCopy(mes, 0, finalmes, 4, mes.Length);
-            Console.WriteLine(BitConverter.ToString(finalmes));
             switch (ConnectionType)
             {
                 case ProtocolType.Tcp:
@@ -135,7 +134,7 @@ namespace InstrumentRemote.RPCv2
 
             byte[] buff = new byte[1024];
             int recSize = RpcSocket.Receive(buff);
-            if (!CheckXID(buff)) return null;
+            if (!CheckXID(buff) && CheckReceive(buff)) return null;
             recSize -= sizeof(uint);
             byte[] nbuff = new byte[recSize];
             Buffer.BlockCopy(buff, sizeof(uint), nbuff, 0, recSize);
@@ -187,7 +186,7 @@ namespace InstrumentRemote.RPCv2
 
         private bool CheckXID(byte[] src)
         {
-            int id = BitConverter.ToInt32(src, 0);
+            int id = NetUtils.ToIntFromBigEndian(src, 0);
             if (xid == id) return true;
             return false;
         }

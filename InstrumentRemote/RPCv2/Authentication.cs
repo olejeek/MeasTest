@@ -87,5 +87,9 @@ namespace InstrumentRemote.RPCv2
             rez.AddRange(Body);
             return rez.ToArray();
         }
+        public override string ToString()
+        {
+            return "Authentication: " + Flavor.ToString();
+        }
     }
 }
