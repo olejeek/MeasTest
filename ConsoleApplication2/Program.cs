@@ -21,11 +21,30 @@ namespace ConsoleApplication2
             Console.Read();
 
             PortmapperClient pm = new PortmapperClient(
-                new IPEndPoint(IPAddress.Parse("172.20.53.7"), 1990),
+                new IPEndPoint(IPAddress.Parse("172.20.53.7"), 1991),
                 new IPEndPoint(IPAddress.Broadcast, 111));
-            uint port = pm.GetPort((int)RpcProgram.VXI_11_Core, 1, TransportProtocol.TCP);
-            pm.Close();
+            Mapping map = new Mapping(RpcProgram.VXI_11_Core, 1, TransportProtocol.TCP);
+            List<IPEndPoint> instruments = new List<IPEndPoint>();
+            uint port = 0;
+            //try
+            //{
+                instruments = pm.GetPortBroadcast(map);
+            //}
+            //catch (Exception e)
+            //{
+            //    Console.WriteLine(e.Message);
+            //}
 
+
+            //port = pm.GetPort((int)RpcProgram.VXI_11_Core, 1, TransportProtocol.TCP);
+            pm.Close();
+            Console.WriteLine(port);
+            Console.WriteLine("List:");
+            foreach( var inst in instruments)
+            {
+                Console.WriteLine(inst);
+            }
+            Console.WriteLine("-----");
             //RpcClient client = new RpcClient(new IPEndPoint(IPAddress.Parse("172.20.53.7"), 1990),
             //    ProtocolType.Udp, new IPEndPoint(IPAddress.Broadcast, 111));
             //client.Connect();

@@ -59,14 +59,14 @@ namespace InstrumentRemote.Portmapper
     {
         #region Consts
         /// <summary>
-        /// Portmapper program number in RPC Protocol
+        /// Portmapper current version.
         /// </summary>
-        const uint PortmapperId = 100000;
+        public const uint PortmapperVersion = 2;
 
         /// <summary>
         /// Portmapper port number
         /// </summary>
-        const uint PortmapperPort = 111;
+        public const uint PortmapperPort = 111;
         #endregion
     }
 }

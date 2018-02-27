@@ -104,8 +104,9 @@ namespace InstrumentRemote.RPCv2
         public RpcReplyMessage(byte[] recieved)
         {
             Type = MessageType.REPLY;
-            state = (ReplyState)NetUtils.ToIntFromBigEndian(recieved, sizeof(int));
             int pos = sizeof(int);
+            state = (ReplyState)NetUtils.ToIntFromBigEndian(recieved, sizeof(int));
+            pos += sizeof(int);
             switch (state)
             {
                 case ReplyState.MSG_ACCEPTED:

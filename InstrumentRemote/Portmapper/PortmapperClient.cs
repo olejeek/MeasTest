@@ -20,6 +20,9 @@ namespace InstrumentRemote.Portmapper
         {
             LocalEndPoint = localEndPoint;
             RemoteEndPoint = remoteEndPoint;
+            if (RemoteEndPoint.Port != Consts.PortmapperPort)
+                throw new ArgumentException("Portmaper. Program using " + 
+                    Consts.PortmapperPort + " port.");
             Client = new RpcClient(localEndPoint, ProtocolType.Udp, remoteEndPoint);
             //Создание RpcClient
         }
@@ -40,29 +43,54 @@ namespace InstrumentRemote.Portmapper
 
         public uint GetPort (Mapping arg)
         {
-            RpcCallMessage getport = new RpcCallMessage(RpcProgram.Portmapper, 2,
-                (uint)PortmapperProcedure.GETPORT, arg.ToBytes());
-            if (!Client.Connected) Client.Connect();
-            Client.Call(getport);
-            RpcReplyMessage reply = Client.Recieve();
-            if (reply.AcceptState == ReplyAcceptState.SUCCESS)
+            RpcCallMessage getport = new RpcCallMessage(RpcProgram.Portmapper, 
+                Consts.PortmapperVersion, (uint)PortmapperProcedure.GETPORT, 
+                arg.ToBytes());
+            Dictionary<EndPoint, RpcReplyMessage> replies = Client.Call(getport);
+            foreach (var reply in replies.Values)
             {
-                uint port = (uint)NetUtils.ToIntFromBigEndian(reply.Result);
-                if (port == 0)
-                    throw new Exception("Portmapper. Program " + arg.Program +
-                        " version " + arg.Version + " not available to " +
-                        arg.Protocol.ToString() + ".");
-                else return port;
+                if (reply.AcceptState == ReplyAcceptState.SUCCESS)
+                {
+                    uint port = (uint)NetUtils.ToIntFromBigEndian(reply.Result);
+                    if (port == 0)
+                        throw new Exception("Portmapper. Program " + arg.Program +
+                            " version " + arg.Version + " not available to " +
+                            arg.Protocol.ToString() + ".");
+                    else return port;
+                }
             }
-            else
-                throw new Exception("Portmapper. Wrong answer. " + reply.ToString() + ".");
+            throw new Exception("Portmapper. No success answer or no answer.");
+
         }
 
         public uint GetPort (uint prog, uint progVers, TransportProtocol protocol)
         {
-            Mapping map = new Mapping(prog, progVers, protocol);
-            return GetPort(map);
+            return GetPort(new Mapping(prog, progVers, protocol));
         }
+
+        public List<IPEndPoint> GetPortBroadcast(Mapping arg)
+        {
+            List<IPEndPoint> list = new List<IPEndPoint>();
+            RpcCallMessage getport = new RpcCallMessage(RpcProgram.Portmapper, Consts.PortmapperVersion,
+                (uint)PortmapperProcedure.GETPORT, arg.ToBytes());
+            //if (!Client.Connected) Client.Connect();
+            //Client.Call(getport);
+            //Dictionary<EndPoint, RpcReplyMessage> reply = Client.RecieveBroadcast();
+            Dictionary<EndPoint, RpcReplyMessage> reply = Client.Call(getport);
+            foreach (var r in reply)
+            {
+                if (r.Value.AcceptState == ReplyAcceptState.SUCCESS)
+                {
+                    int port = NetUtils.ToIntFromBigEndian(r.Value.Result);
+                    IPAddress ad = ((IPEndPoint)r.Key).Address;
+                    if (port != 0) list.Add(new IPEndPoint(((IPEndPoint)r.Key).Address, port));
+                }
+            }
+            
+            return list;
+        }
+
+
 
         public LinkedList<Mapping> Dump ()
         {

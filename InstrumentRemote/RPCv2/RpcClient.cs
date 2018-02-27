@@ -63,19 +63,15 @@ namespace InstrumentRemote.RPCv2
             }
             RpcSocket.ReceiveTimeout = 1000;
             RpcSocket.Bind(LocalEndPoint);
-            RpcSocket.Connect(RemoteEndPoint);
+            if (ConnectionType == ProtocolType.Tcp) RpcSocket.Connect(RemoteEndPoint);
         }
 
-        public void Connect()
-        {
-            RpcSocket.Connect(RemoteEndPoint);
-        }
         public void Close()
         {
             RpcSocket.Close();
         }
 
-        public void Call (RpcCallMessage callProcedure)
+        public void CallWithputReply (RpcCallMessage callProcedure)
         {
             CallMessage = callProcedure;
             byte[] mes = callProcedure.ToBytes();
@@ -85,95 +81,53 @@ namespace InstrumentRemote.RPCv2
             switch (ConnectionType)
             {
                 case ProtocolType.Tcp:
-                    TcpCall(finalmes);
+                    if (!RpcSocket.Connected) RpcSocket.Connect(RemoteEndPoint);
+                    RpcSocket.Send(finalmes);
                     break;
                 case ProtocolType.Udp:
-                    UdpCall(finalmes);
+                    RpcSocket.SendTo(finalmes, RemoteEndPoint);
                     break;
-                default:
-                    throw new Exception(ConnectionType.ToString() + 
-                        " protocol have not realization of function Call().");
-            }
-        }
-        private void UdpCall(byte[] mes)
-        {
-            RpcSocket.SendTo(mes, RemoteEndPoint);
-        }
-        private void TcpCall(byte[] mes)
-        {
-            if (RemoteEndPoint.Address == IPAddress.Broadcast)
-                throw new Exception("RpcClient. TCP not supported broadcast messages.");
-            if (!RpcSocket.Connected) RpcSocket.Connect(RemoteEndPoint);
-
-            RpcSocket.Send(mes);
-        }
-
-        public RpcReplyMessage Recieve()
-        {
-            RpcReplyMessage rp;
-            switch (ConnectionType)
-            {
-                case ProtocolType.Tcp:
-                    rp = TcpReceive();
-                    ReplyMessages.Add(RemoteEndPoint, rp);
-                    return rp;
-                case ProtocolType.Udp:
-                    rp = UdpReceive();
-                    ReplyMessages.Add(RemoteEndPoint, rp);
-                    return rp;
                 default:
                     throw new Exception(ConnectionType.ToString() +
                         " protocol have not realization of function Call().");
             }
         }
-        private RpcReplyMessage TcpReceive()
-        {
-            if (RemoteEndPoint.Address == IPAddress.Broadcast)
-                throw new Exception("RpcClient. TCP not supported broadcast messages.");
-            if (!RpcSocket.Connected) RpcSocket.Connect(RemoteEndPoint);
 
-            byte[] buff = new byte[1024];
-            int recSize = RpcSocket.Receive(buff);
-            if (!CheckXID(buff) && CheckReceive(buff)) return null;
-            recSize -= sizeof(uint);
-            byte[] nbuff = new byte[recSize];
-            Buffer.BlockCopy(buff, sizeof(uint), nbuff, 0, recSize);
-            return new RpcReplyMessage(nbuff);
-        }
-        private RpcReplyMessage UdpReceive()
-        {
-            if (RemoteEndPoint.Address == IPAddress.Broadcast)
-                RpcSocket.Connect(new IPEndPoint(IPAddress.Any, 0));
-            byte[] buff = new byte[1024];
-            int recSize = RpcSocket.Receive(buff);
-            if (!(CheckXID(buff) && CheckReceive(buff))) return null;
-            recSize -= sizeof(uint);
-            byte[] nbuff = new byte[recSize];
-            Buffer.BlockCopy(buff, sizeof(uint), nbuff, 0, recSize);
-            return new RpcReplyMessage(nbuff);
-        }
-        private bool CheckReceive(byte[] src)
-        {
-            MessageType type = (MessageType)NetUtils.ToIntFromBigEndian(src, sizeof(int));
-            if (type == MessageType.REPLY) return true;
-            else return false;
-        }
-
-        public Dictionary<EndPoint, RpcReplyMessage> RecieveBroadcast()
+        public Dictionary<EndPoint, RpcReplyMessage> Call(RpcCallMessage callProcedure)
         {
             Dictionary<EndPoint, RpcReplyMessage> replies = new Dictionary<EndPoint, RpcReplyMessage>();
-            bool waitReplies = true;
-            EndPoint ep = new IPEndPoint(IPAddress.Any, RemoteEndPoint.Port);
-            while (waitReplies)
+            CallMessage = callProcedure;
+            bool waitReplies = ConnectionType == ProtocolType.Tcp ? false : true;
+            EndPoint ep = new IPEndPoint(IPAddress.Any, 111);
+            byte[] mes = callProcedure.ToBytes();
+            byte[] finalmes = new byte[sizeof(uint) + mes.Length];
+            Buffer.BlockCopy(NetUtils.ToBigEndianBytes(xid), 0, finalmes, 0, 4);
+            Buffer.BlockCopy(mes, 0, finalmes, 4, mes.Length);
+            switch (ConnectionType)
+            {
+                case ProtocolType.Tcp:
+                    if (!RpcSocket.Connected) RpcSocket.Connect(RemoteEndPoint);
+                    RpcSocket.Send(finalmes);
+                    break;
+                case ProtocolType.Udp:
+                    RpcSocket.SendTo(finalmes, RemoteEndPoint);
+                    break;
+                default:
+                    throw new Exception(ConnectionType.ToString() +
+                        " protocol have not realization of function Call().");
+            }
+            do
             {
                 try
                 {
                     byte[] buff = new byte[1024];
                     int recSize = RpcSocket.ReceiveFrom(buff, ref ep);
-                    if (!CheckXID(buff)) continue;
+                    if (!CheckReply((IPEndPoint)ep, buff))
+                        continue;
                     recSize -= sizeof(uint);
                     byte[] nbuff = new byte[recSize];
                     Buffer.BlockCopy(buff, sizeof(uint), nbuff, 0, recSize);
+                    if (((IPEndPoint)ep).Port == RemoteEndPoint.Port)
                     replies.Add(ep, new RpcReplyMessage(nbuff));
                 }
                 catch (SocketException)
@@ -181,13 +135,16 @@ namespace InstrumentRemote.RPCv2
                     waitReplies = false;
                 }
             }
+            while (waitReplies);
             return replies;
         }
 
-        private bool CheckXID(byte[] src)
+        private bool CheckReply(IPEndPoint rep, byte[] src)
         {
             int id = NetUtils.ToIntFromBigEndian(src, 0);
-            if (xid == id) return true;
+            MessageType type = (MessageType)NetUtils.ToIntFromBigEndian(src, sizeof(int));
+            if (xid == id && rep.Port == RemoteEndPoint.Port && type == MessageType.REPLY)
+                return true;
             return false;
         }
 
