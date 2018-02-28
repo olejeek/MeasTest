@@ -63,6 +63,7 @@ namespace InstrumentRemote.RPCv2
             }
             RpcSocket.ReceiveTimeout = 1000;
             RpcSocket.Bind(LocalEndPoint);
+            RpcSocket.Ttl = 1;
             if (ConnectionType == ProtocolType.Tcp) RpcSocket.Connect(RemoteEndPoint);
         }
 
